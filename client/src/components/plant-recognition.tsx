@@ -104,6 +104,10 @@ export default function PlantRecognition({
     setPredictions([]);
 
     try {
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Invalid file type. Please upload an image.');
+      }
+
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
       if (onImageDetected) {
@@ -111,7 +115,8 @@ export default function PlantRecognition({
       }
 
       const reader = new FileReader();
-      const imageData = await new Promise<string>((resolve) => {
+      const imageData = await new Promise<string>((resolve, reject) => {
+        reader.onerror = () => reject(new Error('Failed to read image file'));
         reader.onload = (e) => resolve(e.target?.result as string);
         reader.readAsDataURL(file);
       });
@@ -140,9 +145,10 @@ export default function PlantRecognition({
       }
     } catch (error) {
       console.error("Error processing image:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to process the image";
       toast({
         title: "Error",
-        description: "Failed to process the image",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
