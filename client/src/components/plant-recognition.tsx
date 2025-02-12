@@ -175,11 +175,17 @@ export default function PlantRecognition({
             disabled={modelLoading || isLoading}
           >
             {imagePreview ? (
-              <img
-                src={imagePreview}
-                alt="Plant preview"
-                className="absolute inset-0 w-full h-full object-cover rounded-md"
-              />
+              <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-md bg-background">
+                <img
+                  src={imagePreview}
+                  alt="Plant preview"
+                  className="w-full h-full object-contain"
+                  style={{
+                    maxHeight: "100%",
+                    maxWidth: "100%",
+                  }}
+                />
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
                 {modelLoading ? (
