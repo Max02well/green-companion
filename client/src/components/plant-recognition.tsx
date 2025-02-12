@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import * as tf from "@tensorflow/tfjs";
 import * as mobilenet from "@tensorflow-models/mobilenet";
 import { Loader2, Upload } from "lucide-react";
@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface PlantRecognitionProps {
   onSpeciesDetected: (species: string) => void;
@@ -19,22 +20,36 @@ interface PlantRecognitionProps {
 
 export default function PlantRecognition({ onSpeciesDetected, className }: PlantRecognitionProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [modelLoading, setModelLoading] = useState(true);
   const [model, setModel] = useState<mobilenet.MobileNet | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<{ className: string; probability: number }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   // Load the model on component mount
-  useState(() => {
+  useEffect(() => {
     loadModel();
-  });
+  }, []);
 
   async function loadModel() {
     try {
+      setModelLoading(true);
       const loadedModel = await mobilenet.load();
       setModel(loadedModel);
+      toast({
+        title: "Ready for plant recognition",
+        description: "Upload a photo to identify your plant",
+      });
     } catch (error) {
       console.error("Failed to load MobileNet model:", error);
+      toast({
+        title: "Error",
+        description: "Failed to initialize plant recognition. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setModelLoading(false);
     }
   }
 
@@ -54,7 +69,7 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
       await img.decode(); // Wait for image to load
 
       // Get predictions
-      const results = await model.classify(img);
+      const results = await model.classify(img, 5); // Get top 5 predictions
       setPredictions(results);
 
       // Find the most likely plant prediction
@@ -71,11 +86,29 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
           .replace(/(pot plant|flower|tree)/i, "")
           .trim();
         onSpeciesDetected(cleanedName);
+        toast({
+          title: "Plant Detected!",
+          description: `Identified as: ${cleanedName}`,
+        });
+      } else {
+        toast({
+          title: "No plant detected",
+          description: "Try uploading a clearer photo of your plant",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error processing image:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process the image. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''; // Reset file input
+      }
     }
   }
 
@@ -96,12 +129,12 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
             className="hidden"
             onChange={handleImageUpload}
           />
-          
+
           <Button
             onClick={() => fileInputRef.current?.click()}
             variant="outline"
             className="w-full h-32 relative"
-            disabled={!model || isLoading}
+            disabled={modelLoading || isLoading}
           >
             {imagePreview ? (
               <img
@@ -111,8 +144,17 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
               />
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <Upload className="h-8 w-8" />
-                <span>Upload plant photo</span>
+                {modelLoading ? (
+                  <>
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span>Loading recognition model...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-8 w-8" />
+                    <span>Upload plant photo</span>
+                  </>
+                )}
               </div>
             )}
             {isLoading && (
