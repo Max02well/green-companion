@@ -124,6 +124,8 @@ export function registerRoutes(app: Express): Server {
         response_format: { type: "json_object" }
       });
 
+      console.log('OpenAI response:', response.choices[0].message.content); // Debug log
+
       const plantInfo = JSON.parse(response.choices[0].message.content || "{}");
       res.json({
         species: plantInfo.species || 'unknown',

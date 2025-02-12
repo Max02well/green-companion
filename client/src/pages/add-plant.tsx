@@ -45,7 +45,7 @@ export default function AddPlant() {
       image: DEFAULT_PLANT_IMAGES[0],
       wateringFrequency: 7,
       fertilizingFrequency: 30,
-      sunlight: "medium",
+      sunlight: "medium" as const,
       notes: "",
     },
   });
@@ -75,13 +75,16 @@ export default function AddPlant() {
 
       <PlantRecognition
         onSpeciesDetected={(species) => {
-          form.setValue("species", species);
+          form.setValue("species", species, { shouldValidate: true });
+          if (!form.getValues("name")) {
+            form.setValue("name", species, { shouldValidate: true });
+          }
         }}
         onCareInfoDetected={(careInfo) => {
-          form.setValue("wateringFrequency", careInfo.wateringFrequency);
-          form.setValue("fertilizingFrequency", careInfo.fertilizingFrequency);
-          form.setValue("sunlight", careInfo.sunlight);
-          form.setValue("notes", careInfo.notes);
+          form.setValue("wateringFrequency", careInfo.wateringFrequency, { shouldValidate: true });
+          form.setValue("fertilizingFrequency", careInfo.fertilizingFrequency, { shouldValidate: true });
+          form.setValue("sunlight", careInfo.sunlight, { shouldValidate: true });
+          form.setValue("notes", careInfo.notes || "", { shouldValidate: true });
 
           toast({
             title: "Care information detected",
@@ -229,7 +232,14 @@ export default function AddPlant() {
               <FormItem>
                 <FormLabel>Notes</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Any special care instructions..." {...field} />
+                  <Textarea 
+                    placeholder="Any special care instructions..."
+                    value={field.value || ""} 
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

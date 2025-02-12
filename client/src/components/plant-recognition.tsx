@@ -25,10 +25,10 @@ interface PlantRecognitionProps {
   className?: string;
 }
 
-export default function PlantRecognition({ 
-  onSpeciesDetected, 
+export default function PlantRecognition({
+  onSpeciesDetected,
   onCareInfoDetected,
-  className 
+  className
 }: PlantRecognitionProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [modelLoading, setModelLoading] = useState(true);
@@ -79,7 +79,13 @@ export default function PlantRecognition({
       const data = await response.json();
 
       if (data.careInfo && onCareInfoDetected) {
-        onCareInfoDetected(data.careInfo);
+        console.log("Received care info:", data.careInfo); // Debug log
+        onCareInfoDetected({
+          wateringFrequency: Number(data.careInfo.wateringFrequency) || 7,
+          sunlight: data.careInfo.sunlight as "low" | "medium" | "high",
+          fertilizingFrequency: Number(data.careInfo.fertilizingFrequency) || 30,
+          notes: data.careInfo.notes || "Water when top soil feels dry. Provide indirect light."
+        });
       }
 
       return data.species;
@@ -117,21 +123,9 @@ export default function PlantRecognition({
       setPredictions(results);
 
       const bestPrediction = results[0];
-      const isConfident = bestPrediction.probability > 0.5;
-      const seemsPlantRelated = results.some(p => 
-        p.className.toLowerCase().includes("plant") ||
-        p.className.toLowerCase().includes("flower") ||
-        p.className.toLowerCase().includes("tree")
-      );
-
-      let finalSpecies: string;
-
-      if (isConfident && seemsPlantRelated) {
-        finalSpecies = cleanSpeciesName(bestPrediction.className);
-      } else {
-        const openAIResult = await analyzeWithOpenAI(imageData);
-        finalSpecies = openAIResult === 'unknown' ? cleanSpeciesName(bestPrediction.className) : openAIResult;
-      }
+      //Always use OpenAI for plant identification
+      const openAIResult = await analyzeWithOpenAI(imageData);
+      const finalSpecies = openAIResult || cleanSpeciesName(bestPrediction.className);
 
       if (finalSpecies) {
         onSpeciesDetected(finalSpecies);
