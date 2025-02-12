@@ -32,9 +32,7 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
     async function initTensorFlow() {
       try {
         setModelLoading(true);
-        // Initialize TensorFlow.js backend
         await tf.ready();
-        // Load MobileNet model
         const loadedModel = await mobilenet.load();
         setModel(loadedModel);
         toast({
@@ -45,7 +43,7 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
         console.error("Failed to initialize TensorFlow or load model:", error);
         toast({
           title: "Error",
-          description: "Failed to initialize plant recognition. Please try again later.",
+          description: "Failed to initialize plant recognition",
           variant: "destructive",
         });
       } finally {
@@ -54,15 +52,17 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
     }
 
     initTensorFlow();
-
-    // Cleanup
-    return () => {
-      // Dispose of the model when component unmounts
-      if (model) {
-        model.dispose();
-      }
-    };
   }, []);
+
+  function cleanSpeciesName(name: string): string {
+    // Remove common prefixes and suffixes
+    return name
+      .replace(/^(common|wild|garden|indoor|outdoor|potted|flowering|decorative)\s+/i, '')
+      .replace(/(plant|flower|tree|shrub|vine|grass)$/i, '')
+      .split(',')[0] // Take only the first part if there are multiple names
+      .split(' or ')[0] // Take only the first name if there are alternatives
+      .trim();
+  }
 
   async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -72,11 +72,9 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
     setPredictions([]);
 
     try {
-      // Create image preview
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
 
-      // Create an image element for TensorFlow
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.src = previewUrl;
@@ -84,46 +82,30 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
         img.onload = resolve;
       });
 
-      // Get predictions
-      const results = await model.classify(img, 5);
+      // Get more predictions to increase chances of plant detection
+      const results = await model.classify(img, 10);
       setPredictions(results);
 
-      // Find the most likely plant prediction
-      const plantPrediction = results.find(p => 
-        p.className.toLowerCase().includes("plant") ||
-        p.className.toLowerCase().includes("flower") ||
-        p.className.toLowerCase().includes("tree")
-      );
-
-      if (plantPrediction) {
-        // Clean up the class name (e.g., "pot plant, houseplant" -> "houseplant")
-        const cleanedName = plantPrediction.className
-          .split(",")[0]
-          .replace(/(pot plant|flower|tree)/i, "")
-          .trim();
+      // Take the highest probability prediction
+      if (results.length > 0) {
+        const cleanedName = cleanSpeciesName(results[0].className);
         onSpeciesDetected(cleanedName);
         toast({
-          title: "Plant Detected!",
+          title: "Plant Detected",
           description: `Identified as: ${cleanedName}`,
-        });
-      } else {
-        toast({
-          title: "No plant detected",
-          description: "Try uploading a clearer photo of your plant",
-          variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error processing image:", error);
       toast({
         title: "Error",
-        description: "Failed to process the image. Please try again.",
+        description: "Failed to process the image",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Reset file input
+        fileInputRef.current.value = "";
       }
     }
   }
@@ -186,7 +168,7 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
               <h4 className="text-sm font-medium">Possible matches:</h4>
               {predictions.map((prediction, index) => (
                 <div key={index} className="text-sm text-muted-foreground">
-                  {prediction.className} ({(prediction.probability * 100).toFixed(1)}%)
+                  {cleanSpeciesName(prediction.className)} ({(prediction.probability * 100).toFixed(1)}%)
                 </div>
               ))}
             </div>
