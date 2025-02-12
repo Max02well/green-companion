@@ -27,37 +27,50 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Load the model on component mount
+  // Initialize TensorFlow.js and load the model
   useEffect(() => {
-    loadModel();
-  }, []);
-
-  async function loadModel() {
-    try {
-      setModelLoading(true);
-      const loadedModel = await mobilenet.load();
-      setModel(loadedModel);
-      toast({
-        title: "Ready for plant recognition",
-        description: "Upload a photo to identify your plant",
-      });
-    } catch (error) {
-      console.error("Failed to load MobileNet model:", error);
-      toast({
-        title: "Error",
-        description: "Failed to initialize plant recognition. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setModelLoading(false);
+    async function initTensorFlow() {
+      try {
+        setModelLoading(true);
+        // Initialize TensorFlow.js backend
+        await tf.ready();
+        // Load MobileNet model
+        const loadedModel = await mobilenet.load();
+        setModel(loadedModel);
+        toast({
+          title: "Ready for plant recognition",
+          description: "Upload a photo to identify your plant",
+        });
+      } catch (error) {
+        console.error("Failed to initialize TensorFlow or load model:", error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize plant recognition. Please try again later.",
+          variant: "destructive",
+        });
+      } finally {
+        setModelLoading(false);
+      }
     }
-  }
+
+    initTensorFlow();
+
+    // Cleanup
+    return () => {
+      // Dispose of the model when component unmounts
+      if (model) {
+        model.dispose();
+      }
+    };
+  }, []);
 
   async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !model) return;
 
     setIsLoading(true);
+    setPredictions([]);
+
     try {
       // Create image preview
       const previewUrl = URL.createObjectURL(file);
@@ -65,11 +78,14 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
 
       // Create an image element for TensorFlow
       const img = new Image();
+      img.crossOrigin = "anonymous";
       img.src = previewUrl;
-      await img.decode(); // Wait for image to load
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
 
       // Get predictions
-      const results = await model.classify(img, 5); // Get top 5 predictions
+      const results = await model.classify(img, 5);
       setPredictions(results);
 
       // Find the most likely plant prediction
@@ -107,7 +123,7 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
     } finally {
       setIsLoading(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ''; // Reset file input
+        fileInputRef.current.value = ""; // Reset file input
       }
     }
   }
@@ -126,6 +142,7 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             className="hidden"
             onChange={handleImageUpload}
           />
