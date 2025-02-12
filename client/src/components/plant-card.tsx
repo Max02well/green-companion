@@ -6,9 +6,10 @@ import type { Plant } from "@shared/schema";
 
 interface PlantCardProps {
   plant: Plant;
+  onDelete?: () => void;
 }
 
-export default function PlantCard({ plant }: PlantCardProps) {
+export default function PlantCard({ plant, onDelete }: PlantCardProps) {
   return (
     <Card className="overflow-hidden">
       <img 
@@ -34,10 +35,15 @@ export default function PlantCard({ plant }: PlantCardProps) {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="p-4 pt-0">
-        <Button variant="outline" className="w-full" asChild>
+      <CardFooter className="p-4 pt-0 flex justify-between">
+        <Button variant="outline" className="flex-1 mr-2" asChild>
           <Link href={`/plant/${plant.id}`}>View Details</Link>
         </Button>
+        {onDelete && (
+          <Button variant="destructive" onClick={onDelete}>
+            Delete
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

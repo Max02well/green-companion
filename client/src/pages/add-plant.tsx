@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import PlantRecognition from "@/components/plant-recognition";
 
 const DEFAULT_PLANT_IMAGES = [
   "https://images.unsplash.com/photo-1615477367946-5ba36ebe26ed",
@@ -71,6 +72,13 @@ export default function AddPlant() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">Add New Plant</h1>
+
+      <PlantRecognition
+        onSpeciesDetected={(species) => {
+          form.setValue("species", species);
+        }}
+        className="mb-6"
+      />
 
       <Form {...form}>
         <form
