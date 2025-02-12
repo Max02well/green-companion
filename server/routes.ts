@@ -3,6 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertPlantSchema } from "@shared/schema";
 import { z } from "zod";
+import OpenAI from "openai";
+
+const openai = new OpenAI();
 
 export function registerRoutes(app: Express): Server {
   // Plant CRUD endpoints
@@ -69,6 +72,45 @@ export function registerRoutes(app: Express): Server {
       return;
     }
     res.json(guide);
+  });
+
+  app.post("/api/analyze-plant", async (req, res) => {
+    try {
+      const { image } = req.body;
+
+      if (!image || !image.startsWith('data:image/')) {
+        res.status(400).json({ error: "Invalid image format" });
+        return;
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4-vision-preview",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "What plant species is shown in this image? Give me just the species name, nothing else. If you're not sure it's a plant, respond with 'unknown'."
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: image
+                }
+              }
+            ],
+          }
+        ],
+        max_tokens: 50
+      });
+
+      const species = response.choices[0].message.content?.trim();
+      res.json({ species: species || 'unknown' });
+    } catch (error) {
+      console.error('Plant analysis error:', error);
+      res.status(500).json({ error: "Failed to analyze plant image" });
+    }
   });
 
   const httpServer = createServer(app);

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface PlantRecognitionProps {
   onSpeciesDetected: (species: string) => void;
@@ -64,6 +65,17 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
       .trim();
   }
 
+  async function analyzeWithOpenAI(imageData: string) {
+    try {
+      const response = await apiRequest("POST", "/api/analyze-plant", { image: imageData });
+      const data = await response.json();
+      return data.species;
+    } catch (error) {
+      console.error("OpenAI analysis error:", error);
+      return null;
+    }
+  }
+
   async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !model) return;
@@ -75,6 +87,14 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
 
+      // Read file as base64 for OpenAI API
+      const reader = new FileReader();
+      const imageData = await new Promise<string>((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      // Create image for TensorFlow
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.src = previewUrl;
@@ -82,17 +102,34 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
         img.onload = resolve;
       });
 
-      // Get more predictions to increase chances of plant detection
+      // Get predictions from TensorFlow
       const results = await model.classify(img, 10);
       setPredictions(results);
 
-      // Take the highest probability prediction
-      if (results.length > 0) {
-        const cleanedName = cleanSpeciesName(results[0].className);
-        onSpeciesDetected(cleanedName);
+      // Check if TensorFlow found a plant with high confidence
+      const bestPrediction = results[0];
+      const isConfident = bestPrediction.probability > 0.5;
+      const seemsPlantRelated = results.some(p => 
+        p.className.toLowerCase().includes("plant") ||
+        p.className.toLowerCase().includes("flower") ||
+        p.className.toLowerCase().includes("tree")
+      );
+
+      let finalSpecies: string;
+
+      if (isConfident && seemsPlantRelated) {
+        finalSpecies = cleanSpeciesName(bestPrediction.className);
+      } else {
+        // Fallback to OpenAI for more accurate identification
+        const openAIResult = await analyzeWithOpenAI(imageData);
+        finalSpecies = openAIResult === 'unknown' ? cleanSpeciesName(bestPrediction.className) : openAIResult;
+      }
+
+      if (finalSpecies) {
+        onSpeciesDetected(finalSpecies);
         toast({
           title: "Plant Detected",
-          description: `Identified as: ${cleanedName}`,
+          description: `Identified as: ${finalSpecies}`,
         });
       }
     } catch (error) {
