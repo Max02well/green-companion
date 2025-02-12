@@ -80,6 +80,9 @@ export default function AddPlant() {
             form.setValue("name", species, { shouldValidate: true });
           }
         }}
+        onImageDetected={(imageUrl) => {
+          form.setValue("image", imageUrl, { shouldValidate: true });
+        }}
         onCareInfoDetected={(careInfo) => {
           form.setValue("wateringFrequency", careInfo.wateringFrequency, { shouldValidate: true });
           form.setValue("fertilizingFrequency", careInfo.fertilizingFrequency, { shouldValidate: true });
