@@ -91,7 +91,13 @@ export function registerRoutes(app: Express): Server {
             content: [
               {
                 type: "text",
-                text: "What plant species is shown in this image? Give me just the species name, nothing else. If you're not sure it's a plant, respond with 'unknown'."
+                text: "Analyze this plant image and provide the following information in JSON format:\n" +
+                      "1. species: The plant species name\n" +
+                      "2. wateringFrequency: How often to water in days (number)\n" +
+                      "3. sunlight: Light needs ('low', 'medium', or 'high')\n" +
+                      "4. fertilizingFrequency: How often to fertilize in days (number)\n" +
+                      "5. notes: Brief care instructions\n\n" +
+                      "If you're not sure it's a plant, set species to 'unknown' and use default values."
               },
               {
                 type: "image_url",
@@ -102,11 +108,20 @@ export function registerRoutes(app: Express): Server {
             ],
           }
         ],
-        max_tokens: 50
+        max_tokens: 500,
+        response_format: { type: "json_object" }
       });
 
-      const species = response.choices[0].message.content?.trim();
-      res.json({ species: species || 'unknown' });
+      const plantInfo = JSON.parse(response.choices[0].message.content || "{}");
+      res.json({
+        species: plantInfo.species || 'unknown',
+        careInfo: {
+          wateringFrequency: plantInfo.wateringFrequency || 7,
+          sunlight: plantInfo.sunlight || 'medium',
+          fertilizingFrequency: plantInfo.fertilizingFrequency || 30,
+          notes: plantInfo.notes || ''
+        }
+      });
     } catch (error) {
       console.error('Plant analysis error:', error);
       res.status(500).json({ error: "Failed to analyze plant image" });

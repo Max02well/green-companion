@@ -77,6 +77,17 @@ export default function AddPlant() {
         onSpeciesDetected={(species) => {
           form.setValue("species", species);
         }}
+        onCareInfoDetected={(careInfo) => {
+          form.setValue("wateringFrequency", careInfo.wateringFrequency);
+          form.setValue("fertilizingFrequency", careInfo.fertilizingFrequency);
+          form.setValue("sunlight", careInfo.sunlight);
+          form.setValue("notes", careInfo.notes);
+
+          toast({
+            title: "Care information detected",
+            description: "Form has been filled with recommended care instructions.",
+          });
+        }}
         className="mb-6"
       />
 

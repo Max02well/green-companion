@@ -16,10 +16,20 @@ import { apiRequest } from "@/lib/queryClient";
 
 interface PlantRecognitionProps {
   onSpeciesDetected: (species: string) => void;
+  onCareInfoDetected?: (careInfo: {
+    wateringFrequency: number;
+    sunlight: "low" | "medium" | "high";
+    fertilizingFrequency: number;
+    notes: string;
+  }) => void;
   className?: string;
 }
 
-export default function PlantRecognition({ onSpeciesDetected, className }: PlantRecognitionProps) {
+export default function PlantRecognition({ 
+  onSpeciesDetected, 
+  onCareInfoDetected,
+  className 
+}: PlantRecognitionProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [modelLoading, setModelLoading] = useState(true);
   const [model, setModel] = useState<mobilenet.MobileNet | null>(null);
@@ -28,7 +38,6 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Initialize TensorFlow.js and load the model
   useEffect(() => {
     async function initTensorFlow() {
       try {
@@ -56,12 +65,11 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
   }, []);
 
   function cleanSpeciesName(name: string): string {
-    // Remove common prefixes and suffixes
     return name
       .replace(/^(common|wild|garden|indoor|outdoor|potted|flowering|decorative)\s+/i, '')
       .replace(/(plant|flower|tree|shrub|vine|grass)$/i, '')
-      .split(',')[0] // Take only the first part if there are multiple names
-      .split(' or ')[0] // Take only the first name if there are alternatives
+      .split(',')[0]
+      .split(' or ')[0]
       .trim();
   }
 
@@ -69,6 +77,11 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
     try {
       const response = await apiRequest("POST", "/api/analyze-plant", { image: imageData });
       const data = await response.json();
+
+      if (data.careInfo && onCareInfoDetected) {
+        onCareInfoDetected(data.careInfo);
+      }
+
       return data.species;
     } catch (error) {
       console.error("OpenAI analysis error:", error);
@@ -87,14 +100,12 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
 
-      // Read file as base64 for OpenAI API
       const reader = new FileReader();
       const imageData = await new Promise<string>((resolve) => {
         reader.onload = (e) => resolve(e.target?.result as string);
         reader.readAsDataURL(file);
       });
 
-      // Create image for TensorFlow
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.src = previewUrl;
@@ -102,11 +113,9 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
         img.onload = resolve;
       });
 
-      // Get predictions from TensorFlow
       const results = await model.classify(img, 10);
       setPredictions(results);
 
-      // Check if TensorFlow found a plant with high confidence
       const bestPrediction = results[0];
       const isConfident = bestPrediction.probability > 0.5;
       const seemsPlantRelated = results.some(p => 
@@ -120,7 +129,6 @@ export default function PlantRecognition({ onSpeciesDetected, className }: Plant
       if (isConfident && seemsPlantRelated) {
         finalSpecies = cleanSpeciesName(bestPrediction.className);
       } else {
-        // Fallback to OpenAI for more accurate identification
         const openAIResult = await analyzeWithOpenAI(imageData);
         finalSpecies = openAIResult === 'unknown' ? cleanSpeciesName(bestPrediction.className) : openAIResult;
       }
