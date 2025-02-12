@@ -87,17 +87,29 @@ export function registerRoutes(app: Express): Server {
         model: "gpt-4-vision-preview",
         messages: [
           {
+            role: "system",
+            content: "You are a plant identification expert specializing in houseplants and garden plants. Provide accurate species identification and care instructions in JSON format."
+          },
+          {
             role: "user",
             content: [
               {
                 type: "text",
                 text: "Analyze this plant image and provide the following information in JSON format:\n" +
-                      "1. species: The plant species name\n" +
-                      "2. wateringFrequency: How often to water in days (number)\n" +
-                      "3. sunlight: Light needs ('low', 'medium', or 'high')\n" +
-                      "4. fertilizingFrequency: How often to fertilize in days (number)\n" +
-                      "5. notes: Brief care instructions\n\n" +
-                      "If you're not sure it's a plant, set species to 'unknown' and use default values."
+                      "1. species: Give the most specific plant species name you can identify. Consider common houseplants and garden plants first.\n" +
+                      "2. wateringFrequency: How often to water in days (number). Be specific based on the species.\n" +
+                      "3. sunlight: Light needs ('low', 'medium', or 'high'). Choose based on the species requirements.\n" +
+                      "4. fertilizingFrequency: How often to fertilize in days (number). Be specific to the species.\n" +
+                      "5. notes: Provide 2-3 key care instructions specific to this plant.\n\n" +
+                      "Example response:\n" +
+                      "{\n" +
+                      '  "species": "Monstera deliciosa",\n' +
+                      '  "wateringFrequency": 7,\n' +
+                      '  "sunlight": "medium",\n' +
+                      '  "fertilizingFrequency": 30,\n' +
+                      '  "notes": "Allow soil to dry between waterings. Provide support for climbing. Trim yellow leaves."\n' +
+                      "}\n\n" +
+                      "If unsure about the plant species, respond with 'unknown' for species and provide general care instructions."
               },
               {
                 type: "image_url",
@@ -119,7 +131,7 @@ export function registerRoutes(app: Express): Server {
           wateringFrequency: plantInfo.wateringFrequency || 7,
           sunlight: plantInfo.sunlight || 'medium',
           fertilizingFrequency: plantInfo.fertilizingFrequency || 30,
-          notes: plantInfo.notes || ''
+          notes: plantInfo.notes || 'Water when top soil feels dry. Provide indirect light.'
         }
       });
     } catch (error) {
