@@ -16,7 +16,6 @@ import { apiRequest } from "@/lib/queryClient";
 
 interface PlantRecognitionProps {
   onSpeciesDetected: (species: string) => void;
-  onImageDetected?: (imageUrl: string) => void;
   onCareInfoDetected?: (careInfo: {
     wateringFrequency: number;
     sunlight: "low" | "medium" | "high";
@@ -106,9 +105,6 @@ export default function PlantRecognition({
     try {
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
-      if (onImageDetected) {
-        onImageDetected(previewUrl);
-      }
 
       const reader = new FileReader();
       const imageData = await new Promise<string>((resolve) => {
